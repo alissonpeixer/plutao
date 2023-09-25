@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       String @id @default(uuid())
+  username String @unique
+  password String @db.Text
+
+  avatarUrl String? @db.Text
+  avatarByt Bytes?  @db.ByteA
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  socketUser UserSocker[]
+}
+
+model UserSocker {
+  id             String  @id @default(uuid())
+  socketRandomId String? @db.Text
+  userId         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  Users                  Users[]
+  Channel                Channel[]
+  MessagesChannel        MessagesChannel[]
+  conversationsInitiated Conversation[]    @relation("MemberOne")
+  conversationsReceived  Conversation[]    @relation("MemberTwo")
+  DirectMessage          DirectMessage[]
+
+  @@index([userId])
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  name      String
+  password  String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  socketUser UserSocker @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  users           Users[]
+  MessagesChannel MessagesChannel[]
+}
+
+model Users {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channel    Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  socketUser UserSocker @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([userId])
+}
+
+model MessagesChannel {
+  id        String @id @default(uuid())
+  userId    String
+  channelId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  channel    Channel    @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userSocker UserSocker @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([channelId])
+  @@index([userId])
+}
+
+model Conversation {
+  id String @id @default(uuid())
+
+  memberOneId String
+  memberOne   UserSocker @relation("MemberOne", fields: [memberOneId], references: [id], onDelete: Cascade)
+
+  memberTwoId String
+  memberTwo   UserSocker @relation("MemberTwo", fields: [memberTwoId], references: [id], onDelete: Cascade)
+
+  directMessages DirectMessage[]
+
+  @@unique([memberOneId, memberTwoId])
+  @@index([memberTwoId])
+}
+
+model DirectMessage {
+  id      String  @id @default(uuid())
+  content String  @db.Text
+  fileUrl String? @db.Text
+
+  memberId String
+  member   UserSocker @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  deleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([memberId])
+  @@index([conversationId])
+}
